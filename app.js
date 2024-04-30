@@ -26,7 +26,8 @@ var app = new Vue({
 			lines.forEach(function(line) {
 				line = line.replace(/(\r\n|\n|\r)/gm, "").trim();
 				if(line.length == 0) { return; } 
-				var newMessage = /^\[[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}:[0-9]{2}.*/.test(line);
+				//var newMessage = /^\[[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}:[0-9]{2}.*/.test(line); //ios format
+				var newMessage = /^[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}.*/.test(line); //android format - removed [] and seconds
 
 				if(newMessage && message) {
 					that.messages.push(message);       
@@ -36,7 +37,8 @@ var app = new Vue({
 					message = {};
 					message.lines = []; 
 					// Timestamp
-					var tmpTimestamp = line.match(/^\[([0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}:[0-9]{2})\]/);
+					//var tmpTimestamp = line.match(/^\[([0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}:[0-9]{2})\]/); //ios format
+					var tmpTimestamp = line.match(/^([0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}) \- /); //android format - removed [], seconds and added -
 					if(tmpTimestamp) {
 						message.timestamp = tmpTimestamp[1];
 						message.date = parseWhatsAppDate(tmpTimestamp[1]);
@@ -46,26 +48,29 @@ var app = new Vue({
 					}
 				}
 
-				// Special Chars
+				// Special Chars &lt; stands for the less-than sign: < // added description of what gets replaced
 				line = line.replace(/</g, '&lt;');
 
 				// Media
 				line = line.replace(/([a-zA-Z0-9-]+\.jpg)\ &lt;angeh�ngt>/g, '<div class="media"><a href="media/$1" target="blank"><img src="media/$1" /></a></div>');
 				line = line.replace(/([a-zA-Z0-9-]+\.jpg)\ &lt;angehängt>/g, '<div class="media"><a href="media/$1" target="blank"><img src="media/$1" /></a></div>');
 				line = line.replace(/\&lt;Anhang: ([a-zA-Z0-9-]+\.jpg|webp|gif)\>/g, '<div class="media"><a href="media/$1" target="blank"><img src="media/$1" /></a></div>');
-				line = line.replace(/([a-zA-Z0-9-]+\.jpg|webp|gif) (Datei angehängt)/g, '<div class="media"><a href="media/$1" target="blank"><img src="media/$1" /></a></div>');
+				line = line.replace(/([a-zA-Z0-9-]+\.jpg|webp|gif) \(Datei angehängt\)/g, '<div class="media"><a href="media/$1" target="blank"><img src="media/$1" /></a></div>'); //escaped ()
+				line = line.replace(/([a-zA-Z0-9-]+\.mp4) \(Datei angehängt\)/g, '<div class="media"><video src="media/$1" controls=""></div>'); //escaped () and adapted for mp4-files
 				line = line.replace(/\&lt;Anhang: ([a-zA-Z0-9-]+\.mp4)\>/g, '<div class="media"><video src="media/$1" controls=""></div>');
 				line = line.replace(/\&lt;Anhang: ([a-zA-Z0-9-]+\..+)\>/g, '<div class="media">Media: <a href="media/$1" target="blank">$1</a></div>');
 
 				// Username
-				var tmpUsername = line.match(/^\[[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}:[0-9]{2}\] (.+?):/);
+				//var tmpUsername = line.match(/^\[[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}:[0-9]{2}\] (.+?):/); //ios format
+				var tmpUsername = line.match(/^[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2} \- (.+?):/); //android format - removed [], seconds and added -
 				if(tmpUsername) {
 					message.username = tmpUsername[1];
 					message.me = (myNames.indexOf(tmpUsername[1]) > -1);
 				}
 
 				// Message      
-				var tmpMessage = line.match(/^\[[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}:[0-9]{2}\] .+?: (.*)/);
+				//var tmpMessage = line.match(/^\[[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2}:[0-9]{2}\] .+?: (.*)/); //ios format
+				var tmpMessage = line.match(/^[0-9]{2}\.[0-9]{2}\.[0-9]{2}, [0-9]{2}:[0-9]{2} \- .+?: (.*)/); //android format - removed [], seconds and added -
 				if(tmpMessage) {
 					// First Line of message with meta
 					line = tmpMessage[1];
@@ -206,11 +211,13 @@ function range(start, stop, step) {
 } 
 
 function parseWhatsAppDate(dateString) {
-	var d = dateString.match(/^(\d+).(\d+).(\d+), (\d+):(\d+):(\d+)/)
+	//var d = dateString.match(/^(\d+).(\d+).(\d+), (\d+):(\d+):(\d+)/) //ios format
+	var d = dateString.match(/^(\d+).(\d+).(\d+), (\d+):(\d+)/) //android format - removed last digit
 	d.shift()
 	d= d.map(function (elm) {
 		return parseInt(elm)
 	})
-	d = new Date(2000+d[2], d[1]-1, d[0], d[3], d[4], d[5])
+	//d = new Date(2000+d[2], d[1]-1, d[0], d[3], d[4], d[5]) //ios format
+	d = new Date(2000+d[2], d[1]-1, d[0], d[3], d[4]) //android format - removed last digit
 	return d;
 }
